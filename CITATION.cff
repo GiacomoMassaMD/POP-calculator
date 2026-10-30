@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this calculator, please cite the associated manuscript."
+title: "POP score calculator"
+type: software
+authors:
+  - family-names: Massa
+    given-names: Giacomo
+    affiliation: "Fondazione IRCCS Istituto Nazionale dei Tumori; Università degli Studi di Milano"
+    # orcid: "https://orcid.org/0000-0003-4637-9821"  
+license: MIT
+date-released: 2026-10-20
+version: 1.0.0

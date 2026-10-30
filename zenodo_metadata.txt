@@ -1,0 +1,9 @@
+{
+  "title": "POP score calculator",
+  "upload_type": "software",
+  "description": "Web calculator for the Palliative-Oncologic Prognostic (POP) score: predicted survival at 1, 3, 6 and 12 months with approximate 95% confidence intervals for outpatients with advanced cancer referred to palliative care. Research tool, not externally validated.",
+  "creators": [{"name": "Massa, Giacomo", "affiliation": "Fondazione IRCCS Istituto Nazionale dei Tumori; Università degli Studi di Milano"}],
+  "license": "MIT",
+  "keywords": ["prognosis", "nomogram", "palliative care", "oncology", "survival"],
+  "version": "1.0.0"
+}

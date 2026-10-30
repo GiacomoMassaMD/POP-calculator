@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POP Score Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a working instrument. Inputs on the left in the order of the nomogram rows, result panel on the right. */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --fg:#17202b; --muted:#5a6675; --line:#d9dee6;
+  --accent:#1f4e79; --accent-soft:#e3ecf5; --accent-fg:#ffffff; --bar:#1f4e79; --bar-bg:#e6ebf1;
+  --warn-bg:#fff6e5; --warn-line:#e4c27a; --warn-fg:#5a4310;
+  --serif:'IBM Plex Serif',Georgia,serif; --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10161d; --surface:#18212b; --fg:#e8edf3; --muted:#9aa7b6; --line:#2b3745;
+  --accent:#7fb2e0; --accent-soft:#1f3347; --accent-fg:#0d1620; --bar:#7fb2e0; --bar-bg:#263341;
+  --warn-bg:#2b2412; --warn-line:#6b5a2a; --warn-fg:#ecd9a6; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10161d; --surface:#18212b; --fg:#e8edf3; --muted:#9aa7b6; --line:#2b3745;
+  --accent:#7fb2e0; --accent-soft:#1f3347; --accent-fg:#0d1620; --bar:#7fb2e0; --bar-bg:#263341;
+  --warn-bg:#2b2412; --warn-line:#6b5a2a; --warn-fg:#ecd9a6; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans);padding-block:28px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1040px;margin:0 auto}
+header{margin-bottom:22px}
+h1{font:600 28px/1.15 var(--serif);margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);margin:0;max-width:62ch}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:20px}
+.panel h2{font:600 12px/1 var(--sans);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 14px}
+.field{padding:14px 0;box-shadow:0 -1px 0 var(--line);min-width:0;border:0;margin:0}
+.field:first-of-type{box-shadow:none;padding-top:0}
+legend,.lab{font-weight:500;padding:0;margin:0 0 8px;display:block}
+.hint{color:var(--muted);font-size:12.5px;margin:6px 0 0}
+.seg{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--line);border-radius:5px;overflow:hidden;width:max-content;max-width:100%}
+.seg label{position:relative}
+.seg input{position:absolute;opacity:0;inset:0;cursor:pointer;margin:0}
+.seg span{display:block;padding:7px 14px;font-size:14px;border-left:1px solid var(--line);cursor:pointer;background:var(--surface);min-width:48px;text-align:center}
+.seg label:first-child span{border-left:0}
+.seg input:checked+span{background:var(--accent);color:var(--accent-fg);font-weight:500}
+.seg input:focus-visible+span{outline:2px solid var(--accent);outline-offset:-3px}
+select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:8px 10px;width:100%;max-width:100%}
+select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.result{position:sticky;top:16px}
+@media(max-width:820px){.result{position:static}}
+.big{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:6px}
+.big div{min-width:0}
+.big .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.big .v{font:500 30px/1.1 var(--mono);font-variant-numeric:tabular-nums}
+.rows{margin:16px 0 4px;display:grid;gap:12px}
+.row{display:grid;grid-template-columns:74px minmax(0,1fr) 112px;gap:10px;align-items:center}
+.row .t{font-size:13.5px;color:var(--muted)}
+.row .p{font:500 15px/1 var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.track{height:12px;background:var(--bar-bg);border-radius:2px;position:relative;overflow:hidden}
+.fill{position:absolute;inset:0 auto 0 0;background:var(--bar);width:0;transition:width .25s ease}
+.ci{position:absolute;top:3px;bottom:3px;background:var(--fg);opacity:.55;border-radius:1px;left:0;width:0}
+.row .p small{font:400 12px/1 var(--mono);color:var(--muted);margin-left:5px}
+@media(prefers-reduced-motion:reduce){.fill{transition:none}}
+.note{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+.warn{background:var(--warn-bg);border:1px solid var(--warn-line);color:var(--warn-fg);border-radius:6px;padding:12px 14px;font-size:13px;margin-top:20px}
+.warn b{font-weight:600}
+button{font:inherit;font-size:13px;color:var(--accent);background:transparent;border:1px solid var(--line);border-radius:5px;padding:7px 12px;cursor:pointer;margin-top:14px}
+button:hover{background:var(--accent-soft)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details{margin-top:20px}
+summary{cursor:pointer;font-weight:500}
+.tbl{overflow-x:auto;margin-top:10px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+th{font-weight:500;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+footer{margin-top:22px;color:var(--muted);font-size:12.5px;max-width:78ch}
+code{font-family:var(--mono);font-size:12.5px}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>POP Score Calculator</h1>
+  <p class="sub">Palliative-Oncologic Prognostic score for outpatients with advanced cancer referred to palliative care. Enter the seven variables to obtain the predicted survival probability at 1, 3, 6 and 12 months.</p>
+</header>
+
+<div class="grid">
+  <section class="panel" aria-labelledby="in">
+    <h2 id="in">Patient variables at first palliative care visit</h2>
+
+    <fieldset class="field"><legend>Number of metastatic sites</legend>
+      <div class="seg" role="radiogroup">
+        <label><input type="radio" name="nmet" value="0" checked><span>1</span></label>
+        <label><input type="radio" name="nmet" value="1"><span>≥ 2</span></label>
+      </div></fieldset>
+
+    <div class="field"><label class="lab" for="histo">Primary tumour</label>
+      <select id="histo">
+        <optgroup label="Favourable group">
+          <option value="0">Breast</option><option value="0">Lung</option><option value="0">Prostate</option>
+          <option value="0">Bladder</option><option value="0">Kidney</option>
+          <option value="0">Other (neuroendocrine, head and neck, mesothelioma, skin non-melanoma, thymic, other)</option>
+        </optgroup>
+        <optgroup label="Unfavourable group">
+          <option value="1">Biliary</option><option value="1">Pancreatic</option><option value="1">Oesophago-gastric</option>
+          <option value="1">Colorectal</option><option value="1">Melanoma</option><option value="1">Sarcoma</option>
+        </optgroup>
+      </select>
+      <p class="hint" id="hgroup">Cancer type 1 (favourable histology)</p></div>
+
+    <fieldset class="field"><legend>Peripheral (declivous) oedema</legend>
+      <div class="seg" role="radiogroup">
+        <label><input type="radio" name="edema" value="0" checked><span>No</span></label>
+        <label><input type="radio" name="edema" value="1"><span>Yes</span></label>
+      </div></fieldset>
+
+    <fieldset class="field"><legend>Clinical prognostic category (palliative care physician)</legend>
+      <div class="seg" role="radiogroup">
+        <label><input type="radio" name="prog" value="2" checked><span>&gt; 3 months</span></label>
+        <label><input type="radio" name="prog" value="1"><span>1–3 months</span></label>
+        <label><input type="radio" name="prog" value="0"><span>&lt; 1 month</span></label>
+      </div></fieldset>
+
+    <fieldset class="field"><legend>ECOG performance status</legend>
+      <div class="seg" role="radiogroup">
+        <label><input type="radio" name="ecog" value="0" checked><span>0</span></label>
+        <label><input type="radio" name="ecog" value="1"><span>1</span></label>
+        <label><input type="radio" name="ecog" value="2"><span>2</span></label>
+        <label><input type="radio" name="ecog" value="3"><span>3</span></label>
+        <label><input type="radio" name="ecog" value="4"><span>4</span></label>
+      </div></fieldset>
+
+    <fieldset class="field"><legend>Liver metastases</legend>
+      <div class="seg" role="radiogroup">
+        <label><input type="radio" name="liver" value="0" checked><span>No</span></label>
+        <label><input type="radio" name="liver" value="1"><span>Yes</span></label>
+      </div></fieldset>
+
+    <fieldset class="field"><legend>Systemic anticancer therapy within 30 days before referral</legend>
+      <div class="seg" role="radiogroup">
+        <label><input type="radio" name="tp" value="0" checked><span>No</span></label>
+        <label><input type="radio" name="tp" value="1"><span>Yes</span></label>
+      </div>
+      <p class="hint">Chemotherapy, targeted therapy, immunotherapy, hormone therapy or combinations. A proxy for an ongoing oncologic indication.</p></fieldset>
+  </section>
+
+  <section class="panel result" aria-labelledby="out" aria-live="polite">
+    <h2 id="out">Predicted survival</h2>
+    <div class="big">
+      <div><div class="k">Total points</div><div class="v" id="pts">0</div></div>
+      <div><div class="k">Linear predictor</div><div class="v" id="lp">0.00</div></div>
+    </div>
+    <div class="rows" id="rows"></div>
+    <p class="note">Probability of being alive at each time after the first visit, with approximate 95% confidence interval (dark segment on the bar). Total points use the nomogram scale (100 points = ECOG 4).</p>
+    <button type="button" id="copy">Copy result</button>
+    <span id="copied" class="note" hidden> Copied.</span>
+  </section>
+</div>
+
+<div class="warn"><b>Research tool.</b> The POP score was developed retrospectively in a single centre (n = 709, 608 deaths) and has internal validation only. It has not been externally validated and is not intended to guide individual clinical decisions. Early mortality (1 and 3 months) tended to be underestimated in the highest-risk patients. Confidence intervals are approximate: bootstrap estimates from the development cohort that do not account for optimism or model selection.</div>
+
+<details>
+  <summary>Model coefficients and formula</summary>
+  <div class="tbl"><table>
+    <thead><tr><th>Variable</th><th>Coefficient</th><th>Hazard ratio</th></tr></thead>
+    <tbody id="coef"></tbody>
+  </table></div>
+  <p class="note">Cox proportional-hazards model. Survival at time t: S(t | x) = S<sub>0</sub>(t)<sup>exp(LP)</sup>, with LP the sum of the coefficients of the variables present. Baseline survival S<sub>0</sub> (all variables at reference): <span id="s0"></span>. Cancer type 1: breast, lung, prostate, bladder, kidney and other. Cancer type 2: biliary, pancreatic, oesophago-gastric, colorectal, melanoma and sarcoma.</p>
+</details>
+
+<footer>The calculation runs in your browser. No patient data are stored or sent anywhere. Citation: manuscript in preparation.</footer>
+</div>
+
+<script>
+/*POPCALC-START*/
+const BETA={nmet2:0.3364722366212129,cancer:0.3364722366212129,edema:0.20701416938432612,prog01:1.2325602611778486,prog13:0.4762341789963717,ecog:0.34358970439007686,liver:0.3364722366212129,tp:-0.2231435513142097,inter:-0.342490308946776};
+const S0={1:0.962227745513669,3:0.8591907869036847,6:0.7470692637688018,12:0.5897107295197077};
+const PTS_PER_LP=100/(4*BETA.ecog);
+const SE=[204,186,174,173,213,196,182,178,212,197,189,189,216,202,191,188,188,168,158,156,192,174,160,155,198,182,176,175,197,181,172,169,194,175,167,166,193,174,163,158,205,190,186,185,199,184,177,173,220,204,199,198,214,198,190,186,231,218,217,216,222,208,204,201,260,247,245,244,252,238,234,230,271,260,261,260,259,248,246,243,220,204,194,196,234,220,208,208,224,210,204,207,234,221,213,213,195,177,168,170,206,190,179,178,201,186,181,184,208,193,186,186,191,173,166,168,197,180,170,169,199,183,181,183,200,185,180,179,208,192,188,189,209,193,187,185,217,203,203,205,213,200,196,196,242,229,227,228,239,226,222,221,251,240,241,242,244,232,231,231,291,291,289,291,305,304,300,301,300,300,300,303,309,310,308,309,265,265,264,266,276,276,273,273,275,276,278,280,282,283,283,283,254,254,254,256,261,261,260,260,266,267,270,272,269,270,271,272,259,259,261,263,262,263,262,262,272,273,277,279,271,273,275,275,280,280,283,285,279,280,281,281,293,294,299,301,289,290,294,294,231,213,206,207,224,205,196,194,239,223,219,221,228,211,205,204,221,201,196,197,208,188,180,178,230,213,212,213,213,195,191,190,229,211,208,208,212,193,187,185,239,223,223,224,219,201,199,198,254,238,238,238,235,218,215,213,265,250,252,253,242,227,227,225,293,279,280,280,273,258,257,255,303,290,294,294,280,267,268,267,237,219,214,217,236,219,211,212,241,225,223,227,236,220,216,217,217,198,194,198,212,193,186,187,223,206,206,210,213,196,193,194,217,198,196,199,206,187,182,183,224,208,209,213,209,192,191,192,235,218,219,221,221,204,201,202,243,228,231,235,225,209,210,211,269,255,256,258,253,238,237,237,277,264,268,271,257,244,246,247,310,307,308,310,311,309,307,309,318,316,319,322,316,315,315,317,288,285,287,290,286,284,283,285,297,296,300,303,292,291,293,295,280,278,281,284,274,272,273,275,291,290,295,298,282,281,284,286,287,285,290,292,278,276,279,280,299,298,304,307,286,286,291,292,309,307,312,315,297,295,299,300,320,320,327,330,306,305,311,312,194,175,167,166,209,192,182,179,199,183,179,179,209,194,187,185,185,166,159,159,195,178,169,165,191,175,173,173,197,181,176,174,198,181,178,177,204,187,180,177,206,191,192,192,206,192,189,186,231,216,215,214,231,217,213,210,239,226,228,228,234,222,221,219,275,263,264,263,272,260,258,255,283,273,276,275,276,265,266,264,196,179,172,175,218,203,194,194,197,182,179,182,214,200,195,196,176,157,152,155,195,178,171,170,179,163,162,165,193,178,174,174,180,162,159,162,193,177,171,171,184,169,170,173,192,178,176,176,206,190,190,192,213,198,195,195,211,198,201,203,213,200,201,201,247,234,236,237,249,236,235,235,252,241,246,248,250,239,241,241,284,284,284,286,301,301,299,300,289,291,293,296,303,305,305,306,262,263,264,267,278,278,277,278,270,271,275,278,281,283,284,286,257,257,260,263,269,269,270,271,265,267,273,275,273,275,278,279,268,268,273,275,275,276,278,279,277,279,285,288,281,283,287,288,293,294,299,301,297,298,301,301,303,304,312,314,303,305,310,311,260,246,241,238,278,265,258,253,258,246,243,241,272,261,256,253,242,227,223,220,257,243,237,233,242,228,227,225,253,240,237,233,241,227,225,222,253,239,234,229,242,229,230,228,249,237,235,231,258,245,244,241,265,252,249,244,260,248,250,248,263,251,251,247,289,277,278,276,291,280,279,275,292,281,285,283,291,280,282,278,269,256,252,252,291,280,274,272,264,253,251,252,284,273,270,268,244,230,227,227,264,252,247,245,240,228,228,228,257,246,243,242,235,221,219,219,252,239,236,233,233,220,222,222,246,234,233,231,244,231,231,231,257,244,243,240,243,231,234,234,252,240,241,239,270,258,260,259,277,266,266,263,270,259,263,263,274,264,266,264,323,323,323,324,344,344,342,341,324,325,327,328,342,342,343,343,296,295,297,298,315,315,315,314,298,299,303,303,313,314,317,316,281,281,284,285,298,298,299,298,284,285,291,292,297,298,302,301,281,281,286,286,294,295,297,296,285,287,294,294,295,296,301,300,296,297,303,303,306,306,310,308,301,303,311,311,307,309,315,314,171,148,138,143,175,153,139,141,172,152,147,153,170,150,141,144,144,117,108,114,142,115,100,102,148,124,122,128,139,114,105,108,146,119,113,119,136,107,96,97,151,128,129,135,135,109,104,107,174,152,151,155,159,136,130,131,180,161,164,169,160,139,139,140,218,202,203,206,202,185,182,183,225,210,214,218,204,189,190,191,193,174,166,174,203,186,176,181,190,173,170,178,196,179,173,178,158,134,128,137,165,143,133,138,156,135,134,144,157,136,131,138,146,120,117,127,146,122,113,120,146,124,126,136,140,117,114,121,162,140,140,148,156,134,129,135,164,145,149,158,152,131,132,138,200,182,185,191,190,172,171,175,203,188,193,200,188,172,175,179,270,269,269,275,280,279,277,281,274,274,277,282,280,280,281,285,238,237,239,245,245,244,244,248,243,243,248,254,246,247,249,253,221,220,224,230,224,223,224,229,227,228,235,241,226,227,231,236,222,222,227,233,221,221,224,228,230,231,239,246,224,226,232,236,243,242,249,254,237,237,241,245,251,252,261,267,241,243,250,254,210,188,185,190,196,173,166,170,211,192,192,198,192,171,168,172,193,170,168,174,172,146,140,144,196,175,177,184,169,145,144,149,198,175,176,181,171,145,143,146,202,182,186,192,170,147,149,153,222,203,206,210,194,172,172,175,227,210,216,221,195,175,179,182,262,246,249,253,234,216,218,220,267,253,259,263,236,220,225,227,218,199,196,204,212,192,187,193,216,198,199,208,205,186,184,191,192,170,170,179,180,156,152,159,191,171,174,184,173,150,151,158,187,164,166,175,168,142,141,148,187,166,173,182,162,138,141,150,203,183,187,195,180,157,159,165,205,187,194,202,177,155,161,168,238,220,226,232,214,195,198,203,240,225,233,240,212,195,201,207,295,292,294,301,292,289,290,295,298,296,301,307,292,290,294,298,268,265,270,276,262,259,261,266,273,271,278,285,262,261,266,271,256,253,259,266,245,242,246,251,262,260,269,276,247,246,252,258,260,258,265,272,245,243,249,253,267,266,276,282,249,247,256,261,280,278,287,292,263,260,267,272,288,287,297,303,267,266,275,280,162,139,134,140,173,152,144,146,159,138,137,144,164,144,140,144,145,119,116,123,151,126,119,122,143,120,123,130,142,119,118,121,156,132,133,139,155,132,128,130,157,135,141,147,149,127,129,132,191,172,175,179,184,165,165,167,192,176,183,187,181,164,167,170,239,224,228,231,229,214,216,217,241,229,235,239,228,214,219,221,169,147,144,153,187,169,163,168,161,141,142,153,175,157,155,161,139,112,112,123,154,132,127,134,131,106,112,125,141,119,119,127,137,110,113,124,146,122,120,127,131,107,116,128,133,110,114,122,163,142,147,156,165,145,146,151,161,142,151,160,156,137,143,149,208,192,198,204,205,189,192,196,208,193,202,209,199,185,191,196,264,264,266,272,278,278,279,283,265,265,271,277,275,276,280,284,237,237,242,248,249,249,251,256,239,240,248,254,247,248,253,258,227,227,233,240,235,235,239,244,230,231,241,248,234,236,242,247,235,235,243,249,239,239,245,249,239,241,252,258,239,241,249,254,260,260,269,275,260,260,267,270,265,267,278,283,261,263,272,276,240,224,222,223,254,240,235,234,232,217,218,220,243,229,227,227,216,199,198,199,228,212,208,207,209,192,195,197,216,201,201,200,211,193,195,196,218,202,200,199,205,188,193,195,207,192,194,193,226,210,213,214,228,213,213,212,221,206,213,214,219,204,208,207,257,243,247,248,255,241,243,242,254,241,248,250,248,236,240,240,252,238,237,240,271,259,255,257,241,228,230,234,258,245,245,247,221,205,205,209,239,224,222,223,210,195,199,203,224,210,211,213,207,190,192,196,221,205,205,206,196,180,187,191,206,192,194,197,213,196,201,204,222,207,208,209,204,189,197,201,209,194,199,201,237,223,229,232,241,228,231,232,231,218,226,230,231,218,224,226,308,307,310,314,326,326,327,328,304,305,310,314,319,320,323,325,276,275,280,283,292,292,294,296,272,273,280,284,285,286,291,293,256,256,262,266,270,270,274,276,254,255,264,268,264,265,272,274,253,253,261,264,263,263,269,270,252,253,263,267,258,259,267,270,266,266,275,278,272,272,279,281,266,267,279,282,268,269,279,281]; // bootstrap SE (x1000) of log(-log S), 480 profiles x 4 times
+function compute(x){ // x: nmet2, cancer, edema (0/1), prog (2 = >3 mo, 1 = 1-3 mo, 0 = <1 mo), ecog 0-4, liver, tp
+  const lp=BETA.nmet2*x.nmet2+BETA.cancer*x.cancer+BETA.edema*x.edema+BETA.prog01*(x.prog===0?1:0)+BETA.prog13*(x.prog===1?1:0)
+    +BETA.ecog*x.ecog+BETA.liver*x.liver+BETA.tp*x.tp+BETA.inter*x.cancer*x.edema;
+  const idx=((((x.nmet2*2+x.cancer)*2+x.edema)*3+(2-x.prog))*5+x.ecog)*4+x.liver*2+x.tp;
+  const surv={},lo={},hi={}; const T=[1,3,6,12];
+  T.forEach((t,k)=>{
+    surv[t]=Math.pow(S0[t],Math.exp(lp));
+    const ll=Math.log(-Math.log(S0[t]))+lp, se=SE[idx*4+k]/1000;
+    lo[t]=Math.exp(-Math.exp(ll+1.96*se)); hi[t]=Math.exp(-Math.exp(ll-1.96*se));
+  });
+  return {lp,points:lp*PTS_PER_LP,surv,lo,hi};
+}
+/*POPCALC-END*/
+const $=s=>document.querySelector(s);
+const val=n=>+document.querySelector('input[name="'+n+'"]:checked').value;
+const rowsEl=$('#rows');
+[1,3,6,12].forEach(t=>{
+  rowsEl.insertAdjacentHTML('beforeend','<div class="row"><div class="t">'+t+(t===1?' month':' months')+'</div><div class="track"><div class="fill" id="f'+t+'"></div><div class="ci" id="c'+t+'"></div></div><div class="p" id="p'+t+'">–</div></div>');
+});
+let last='';
+function update(){
+  const x={nmet2:val('nmet'),cancer:+$('#histo').value,edema:val('edema'),prog:val('prog'),ecog:val('ecog'),liver:val('liver'),tp:val('tp')};
+  const r=compute(x);
+  $('#hgroup').textContent=x.cancer?'Cancer type 2 (unfavourable histology)':'Cancer type 1 (favourable histology)';
+  $('#pts').textContent=Math.round(r.points);
+  $('#lp').textContent=r.lp.toFixed(2);
+  const out=[];
+  for(const t of [1,3,6,12]){const p=r.surv[t]*100; $('#f'+t).style.width=p.toFixed(1)+'%'; const f0=v=>(v*100<0.5?'<1':(v*100).toFixed(0)); const ps=(p<0.5?'<1':p.toFixed(0))+'%'; const a=r.lo[t]*100,b=r.hi[t]*100;
+    $('#p'+t).innerHTML=ps+'<small>('+f0(r.lo[t])+'–'+f0(r.hi[t])+')</small>'; const c=$('#c'+t); c.style.left=a.toFixed(1)+'%'; c.style.width=Math.max(b-a,0.8).toFixed(1)+'%';
+    out.push(t+'-month survival '+ps+' (95% CI '+f0(r.lo[t])+'–'+f0(r.hi[t])+')');}
+  last='POP score: '+Math.round(r.points)+' points (linear predictor '+r.lp.toFixed(2)+'). '+out.join(', ')+'.';
+}
+document.querySelectorAll('input[type=radio],select').forEach(e=>e.addEventListener('change',update));
+$('#copy').addEventListener('click',()=>{
+  const done=()=>{const c=$('#copied');c.hidden=false;setTimeout(()=>c.hidden=true,1800)};
+  try{navigator.clipboard.writeText(last).then(done,()=>{})}catch(e){}
+});
+const names=[['Number of metastatic sites ≥ 2','nmet2'],['Unfavourable histology (cancer type 2)','cancer'],['Oedema','edema'],['Prognostic category 1–3 months','prog13'],['Prognostic category < 1 month','prog01'],['ECOG-PS (per point)','ecog'],['Liver metastases','liver'],['Ongoing anticancer therapy','tp'],['Unfavourable histology × oedema','inter']];
+$('#coef').innerHTML=names.map(([n,k])=>'<tr><td>'+n+'</td><td class="n">'+BETA[k].toFixed(3)+'</td><td class="n">'+Math.exp(BETA[k]).toFixed(2)+'</td></tr>').join('');
+$('#s0').textContent=[1,3,6,12].map(t=>t+' mo '+S0[t].toFixed(3)).join(', ');
+update();
+</script>
+
+</body>
+</html>
